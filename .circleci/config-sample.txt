@@ -295,3 +295,29 @@ workflows:
           requires: [smoke-test]
       - cleanup:
           requires: [cloudfront-update]
+
+
+#DB Details
+
+Endpoint (Hostname): cfcife-postgresql.cl8oyryg2ejl.us-east-1.rds.amazonaws.com
+Instace Identifier: cfcife-postgresql
+Database Name: postgres
+Username: cfcife
+Password: 
+Port:5432
+
+#AWS Env Variables - https://classroom.udacity.com/nanodegrees/nd9991-alg-t2/parts/cd0649/modules/a1931550-781e-4305-931d-d988c8322388/lessons/026209b1-437c-49e2-b017-9148b916ef16/concepts/ab94fe7f-6185-4ad7-914e-14a91ebd27a1
+
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_SESSION_TOKEN
+AWS_DEFAULT_REGION
+TYPEORM_CONNECTION = postgres
+TYPEORM_MIGRATIONS_DIR = ./src/migrations
+TYPEORM_ENTITIES = ./src/modules/domain/**/*.entity.ts
+TYPEORM_MIGRATIONS = ./src/migrations/*.ts
+TYPEORM_HOST = rds hostname
+TYPEORM_PORT = 5432
+TYPEORM_USERNAME = db username
+TYPEORM_PASSWORD = db password
+TYPEORM_DATABASE = postgres
