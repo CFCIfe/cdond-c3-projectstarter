@@ -75,8 +75,6 @@ jobs:
           name: Analyze for security vulnerability in frontend
           command: |
             cd frontend
-            npm install
-            npm audit --audit-level=critical
             npm audit fix --audit-level=critical --force
 
   scan-backend:
@@ -90,8 +88,6 @@ jobs:
           name: Analyze for security vulnerability in backend
           command: |
             cd backend
-            npm install
-            npm audit --audit-level=critical
             npm audit fix --audit-level=critical --force
 
 workflows:
