@@ -161,6 +161,7 @@ jobs:
           to: "frontend"
       - destroy-environment:
           to: "backend"
+      - slack-notification_on_fail
 
 workflows:
   default:
@@ -182,4 +183,5 @@ workflows:
           context: slack-secrets
           requires: [build-backend]
       - deploy-infrastructure:
+          context: slack-secrets
           requires: [test-frontend, test-backend, scan-frontend, scan-backend]
