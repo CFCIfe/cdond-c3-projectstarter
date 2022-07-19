@@ -200,8 +200,8 @@ jobs:
       - run:
           name: Configure server
           command: |
-            cd .circleci/ansible
-            .circleci/ansible/inventory.txt .circleci/ansible/ansible-playbook -i configure-server.yml -u ubuntu
+            cd .circleci/ansible/
+            ansible-playbook -i inventory.txt configure-server.yml -u ubuntu
       - destroy-environment:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
   run-migrations:
