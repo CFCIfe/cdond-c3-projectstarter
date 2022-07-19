@@ -179,9 +179,9 @@ jobs:
             ansible-playbook -i inventory.txt configure-server.yml
       - slack-notification_on_fail
       - destroy-environment:
-          to: "backend"
+          to: backend
       - destroy_environment:
-          to: "frontend"
+          to: frontend
 
 workflows:
   default:
