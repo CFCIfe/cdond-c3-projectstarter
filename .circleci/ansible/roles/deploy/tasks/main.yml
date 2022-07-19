@@ -1,7 +1,7 @@
-- name: "Creates backend_app dirctory"
+- name: "Creates backend_app directory"
   become: true
   file:
-    path: ./backend_app
+    path: ./backend-app
     state: directory
 
 - name: "Move backend files to App Directory"
@@ -24,26 +24,17 @@
   shell: |
     cd ./backend-app
     npm install
-
-- name: stop all pm2 process
-  become: true
-  shell: |
-      pm2 stop default
-  ignore_errors: true
-
-- name: start app
-  become: true
-  command: |
+    pm2 stop default
     pm2 start --name "udapeople-backend" -f ./dist/main.js
 
   environment:
-    - NODE_ENV: production
-    - TYPEORM_CONNECTION: "{{ lookup('env', 'TYPEORM_CONNECTION')}}"
-    - TYPEORM_ENTITIES: "{{ lookup('env', 'TYPEORM_ENTITIES')}}"
-    - TYPEORM_HOST: "{{ lookup('env', 'TYPEORM_HOST')}}"
-    - TYPEORM_PORT: "{{ lookup('env', 'TYPEORM_PORT')}}"
-    - TYPEORM_USERNAME: "{{ lookup('env', 'TYPEORM_USERNAME')}}"
-    - TYPEORM_PASSWORD: "{{ lookup('env', 'TYPEORM_PASSWORD')}}"
-    - TYPEORM_DATABASE: "{{ lookup('env', 'TYPEORM_DATABASE')}}"
-    - TYPEORM_MIGRATIONS: "{{ lookup('env', 'TYPEORM_MIGRATIONS')}}"
-    - TYPEORM_MIGRATIONS_DIR: "{{ lookup('env', 'TYPEORM_MIGRATIONS_DIR')}}"
+    NODE_ENV: production
+    TYPEORM_CONNECTION: "{{ lookup('env', 'TYPEORM_CONNECTION')}}"
+    TYPEORM_ENTITIES: "{{ lookup('env', 'TYPEORM_ENTITIES')}}"
+    TYPEORM_HOST: "{{ lookup('env', 'TYPEORM_HOST')}}"
+    TYPEORM_PORT: "{{ lookup('env', 'TYPEORM_PORT')}}"
+    TYPEORM_USERNAME: "{{ lookup('env', 'TYPEORM_USERNAME')}}"
+    TYPEORM_PASSWORD: "{{ lookup('env', 'TYPEORM_PASSWORD')}}"
+    TYPEORM_DATABASE: "{{ lookup('env', 'TYPEORM_DATABASE')}}"
+    TYPEORM_MIGRATIONS: "{{ lookup('env', 'TYPEORM_MIGRATIONS')}}"
+    TYPEORM_MIGRATIONS_DIR: "{{ lookup('env', 'TYPEORM_MIGRATIONS_DIR')}}"
