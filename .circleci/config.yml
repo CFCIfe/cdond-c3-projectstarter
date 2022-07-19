@@ -171,8 +171,8 @@ jobs:
             aws ec2 describe-instances \
               --region ${AWS_DEFAULT_REGION} \
               --query "Reservations[*].Instances[*].PublicIpAddress" \
-              --output text >> inventory
-            cat inventory 
+              --output text >> .circleci/ansible/inventory.txt
+            cat inventory.txt
       - persist_to_workspace:
           root: ~/
           paths:
