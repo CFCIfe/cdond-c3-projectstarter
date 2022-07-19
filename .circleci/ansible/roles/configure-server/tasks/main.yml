@@ -1,4 +1,4 @@
-- name: "install nodejs, npm and pm2"
+- name: "install nodejs, npm"
   become: yes
   apt:
     name: ["nodejs", "npm"]
