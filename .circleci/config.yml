@@ -13,7 +13,7 @@ commands:
 
   destroy-environment:
     parameters:
-      name:
+      to:
         default: "backend"
         type: string
     steps:
@@ -183,9 +183,9 @@ jobs:
             ansible-playbook -i inventory.txt configure-server.yml
       - slack-notification_on_fail
       - destroy_environment:
-          name: "backend"
+          to: "backend"
       - destroy_environment:
-          name: "frontend"
+          to: "frontend"
 
 workflows:
   default:
