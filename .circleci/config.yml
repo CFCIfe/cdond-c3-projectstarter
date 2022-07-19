@@ -171,7 +171,8 @@ jobs:
             aws ec2 describe-instances \
               --region ${AWS_DEFAULT_REGION} \
               --query "Reservations[*].Instances[*].PublicIpAddress" \
-              --output text >> inventory   
+              --output text >> inventory
+            cat inventory 
       - persist_to_workspace:
           root: ~/
           paths:
@@ -311,6 +312,7 @@ jobs:
               --region ${AWS_DEFAULT_REGION} \
               --query "Reservations[*].Instances[*].PublicIpAddress" \
               --output text)
+            echo "${BACKEND_IP}"
       - run:
           name: Backend smoke test.
           command: |
