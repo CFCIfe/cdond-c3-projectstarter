@@ -2,7 +2,6 @@ version: 2.1
 
 orbs: 
   slack: circleci/slack@4.10.1
-  aws-cli: circleci/aws-cli@2.0.3
 
 commands:
   slack-notification_on_fail:
@@ -12,16 +11,23 @@ commands:
           mentions: '@Peter Abolude'
           template: basic_fail_1
 
-  destroy_environment:
+  destroy-environment:
+    description: delete stacks on failure
     parameters:
-      to:
+      workflow-id:
         type: string
+        default: "{CIRCLE_WORKFLOW_ID:0:7}"
     steps:
       - run:
           name: Destroy Environment
           when: on_fail
           command: |
-            aws cloudformation delete-stack --stack-name "udapeople-<< parameters.to >>-${CIRCLE_WORKFLOW_ID:0:7}"
+            aws cloudformation delete-stack \
+              --stack-name "udapeople-backend-<< parameters.workflow-id >> \
+              --region us-east-1
+            aws cloudformation delete-stack \
+              --stack-name "udapeople-frontend-<< parameters.workflow-id >> \
+              --region us-east-1
 
 jobs:
   build-frontend:
@@ -152,15 +158,16 @@ jobs:
           paths:
             - project/.circleci/ansible/inventory.txt
       - slack-notification_on_fail
+
   configure-infrastructure:
     docker:
-      - image: python:3.7-alpine3.16
+      - image: python:3.9.0-alpine
     steps:
       - checkout
       - add_ssh_keys:
          fingerprints: ["69:a5:45:33:4f:b5:de:00:fd:43:42:4b:7c:3b:cc:86"]
       - attach_workspace:
-          at: ~/project
+          at: ~/
       - run:
           name: Install dependencies
           command: |
@@ -171,17 +178,14 @@ jobs:
             apk add --no-cache --upgrade bash
             apk add --no-cache --update ansible
             apk add --no-cache openssh-client
-            pip3 install awscli
+            apk add --no-cache aws-cli
       - run:
           name: Configure server
           command: |
             cd .circleci/ansible
             ansible-playbook -i inventory.txt configure-server.yml
-      - slack-notification_on_fail
       - destroy-environment:
-          to: backend
-      - destroy_environment:
-          to: frontend
+          workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
 
 workflows:
   default:
