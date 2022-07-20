@@ -170,8 +170,9 @@ jobs:
           name: Add back-end DNS to ansible inventory
           command: |
             aws ec2 describe-instances \
+              --filters "Name=instance-state-name,Values=running" \
               --region ${AWS_DEFAULT_REGION} \
-              --query "Reservations[*].Instances[*].PublicDnsName" \
+              --query "Reservations[*].Instances[*].[PublicIpAddress]" \
               --output text >> .circleci/ansible/inventory.txt
             cat .circleci/ansible/inventory.txt
       - persist_to_workspace:
@@ -245,8 +246,9 @@ jobs:
           name: Get backend url
           command: |
             export BACKEND_IP=$(aws ec2 describe-instances \
+              --filters "Name=instance-state-name,Values=running" \
               --region ${AWS_DEFAULT_REGION} \
-              --query "Reservations[*].Instances[*].PublicDnsName" \
+              --query "Reservations[*].Instances[*].[PublicIpAddress]" \
               --output text)
             export API_URL="http://${BACKEND_IP}:3030"
             echo "${API_URL}"
@@ -296,20 +298,21 @@ jobs:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
   smoke-test:
     docker:
-      - image: alpine:latest 
+      - image: alpine:latest
     steps:
       - checkout
       - run:
           name: Install dependencies
           command: |
-            apk add --update curl
             apk add --no-cache aws-cli
+            apk --no-cache add curl
       - run:
           name: Get backend url and backend smoke test
           command: |
             export BACKEND_IP=$(aws ec2 describe-instances \
+              --filters "Name=instance-state-name,Values=running" \
               --region ${AWS_DEFAULT_REGION} \
-              --query "Reservations[*].Instances[*].PublicDnsName" \
+              --query "Reservations[*].Instances[*].[PublicIpAddress]" \
               --output text)
             echo "${BACKEND_IP}"
             export API_URL="http://${BACKEND_IP}:3030"
