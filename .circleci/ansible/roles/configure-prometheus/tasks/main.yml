@@ -24,7 +24,7 @@
 - name: Create prometheus directories
   become: true
   shell: |
-    sudo useradd --no-create-home --shell /bin/false prometheus
+    useradd --no-create-home --shell /bin/false prometheus
     mkdir -p /etc/prometheus
     mkdir -p /var/lib/prometheus
     chown prometheus:prometheus /etc/prometheus
@@ -71,7 +71,7 @@
 
 - name: Grant Prometheus.yml file ownership
   shell: >
-    chown root:ubuntu /etc/prometheus/prometheus.yml
+    chown prometheus:prometheus /etc/prometheus/prometheus.yml
 
 - name: Create prometheus service configuration
   become: true
