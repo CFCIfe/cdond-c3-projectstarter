@@ -1,1 +1,0 @@
-http://udapeople-aa2b5ab.s3-website-us-east-1.amazonaws.com
