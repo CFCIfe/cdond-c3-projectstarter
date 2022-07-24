@@ -362,6 +362,8 @@ jobs:
           name: Get old stack workflow id
           command: |
             export OldWorkflowID=$(aws cloudformation list-exports --query "Exports[?Name==\`WorkflowID\`].Value" --no-paginate --output text)
+
+            echo "OldWorkflowID: ${OldWorkflowID: -7}"
       - run:
           name: Update cloudfront distribution
           command: |
@@ -373,10 +375,8 @@ jobs:
       - run:
           name: remove old stacks
           command: |
-            export STACKS=$(aws cloudformation list-stacks \ 
-              --query "StackSummaries[*].StackName" \
-              --stack-status-filter CREATE_COMPLETE \ 
-              --no-paginate --output text)
+            export STACKS=($(aws cloudformation list-stacks --query "StackSummaries[*].StackName" \
+            --stack-status-filter CREATE_COMPLETE --no-paginate --output text))
             if [[ "${STACKS[@]}" =~ "${OldWorkflowID: -7}" ]]
             then
               aws s3 rm "s3://udapeople-${OldWorkflowID: -7}" --recursive
