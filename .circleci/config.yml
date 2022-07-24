@@ -361,12 +361,21 @@ jobs:
       - run:
           name: Update cloudfront distribution
           command: |
+            export OldWorkflowID=$(aws cloudformation list-exports --query "Exports[?Name==\`WorkflowID\`].Value" --no-paginate --output text) 
+            echo $OldWorkflowID >> ~/OldWorkflowID.txt
+            cat ~/OldWorkflowID.txt
+
             aws cloudformation deploy \
               --template-file .circleci/files/cloudfront.yml \
               --stack-name InitialStack \
               --parameter-overrides WorkflowID="udapeople-${CIRCLE_WORKFLOW_ID:0:7}" \
               --tags project=udapeople
-      #Destroy environment and revert migrations if job fails 
+            
+            echo OldWorkflowID: "{OldWorkflowID}"
+            echo Current Workflow: "{CIRCLE_WORKFLOW_ID:0:7}"
+      - persist_to_workspace:
+          root: ~/
+          paths: OldWorkflowID.txt
       - destroy-environment:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
       - reverse-migration:
@@ -377,21 +386,21 @@ jobs:
       - image: amazon/aws-cli
     steps:
       - checkout
+      - attach_workspace:
+          at: ~/
       - run:
           name: Get old stack workflow id
           command: |
-            export OldWorkflowID=$(aws cloudformation list-exports --query "Exports[?Name==\`WorkflowID\`].Value" --no-paginate --output text)
-
-            echo "OldWorkflowID: ${OldWorkflowID}"
-            echo CURRENT_WORKFLOW_ID: "${CIRCLE_WORKFLOW_ID:0:7}"
+            OldWorkflowID=$(cat OldWorkflowID.txt)
 
             export STACKS=($(aws cloudformation list-stacks --query "StackSummaries[*].StackName" \
             --stack-status-filter CREATE_COMPLETE --no-paginate --output text))
+
             echo Stack names: "${STACKS[@]}"
 
-            if [[ "${CIRCLE_WORKFLOW_ID:0:7}" != "${OLD_WORKFLOW_ID}" ]]
+            if [[ "${STACKS[@]}" =~ "${OldWorkflowID}" ]]
             then
-              aws s3 rm "s3://udapeople-${OldWorkflowID}" --recursive
+              aws s3 rm "s3://${OldWorkflowID}" --recursive
               aws cloudformation delete-stack --stack-name "udapeople-frontend-${OldWorkflowID}"
               aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}"
             else
@@ -401,25 +410,21 @@ jobs:
 workflows:
   default:
     jobs:
-      - build-frontend:
-          context: slack-secrets
-      - build-backend:
-          context: slack-secrets
+      - build-frontend
+      - build-backend
       - test-frontend:
-          context: slack-secrets
           requires: [build-frontend]
       - test-backend:
-          context: slack-secrets
+          requires: [build-backend]
+      - scan-backend:
           requires: [build-backend]
       - scan-frontend:
-          context: slack-secrets
           requires: [build-frontend]
-      - scan-backend:
-          context: slack-secrets
-          requires: [build-backend]
       - deploy-infrastructure:
-          context: slack-secrets
           requires: [test-frontend, test-backend, scan-frontend, scan-backend]
+          filters:
+            branches:
+              only: [test-feature-branch]
       - configure-infrastructure:
           requires: [deploy-infrastructure]
       - run-migrations:
