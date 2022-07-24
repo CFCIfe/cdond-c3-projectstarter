@@ -34,18 +34,6 @@ Resources:
           ToPort: 9100
           CidrIp: 0.0.0.0/0
 
-  # EC2Instance:
-  #   Type: AWS::EC2::Instance
-  #   Properties:
-  #     InstanceType: t2.micro
-  #     SecurityGroups:
-  #       - Ref: InstanceSecurityGroup
-  #     KeyName: udacity
-  #     ImageId: ami-052efd3df9dad4825
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Sub backend-${ID}
-
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
