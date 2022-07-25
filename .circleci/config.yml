@@ -3,6 +3,11 @@ version: 2.1
 orbs: 
   slack: circleci/slack@4.10.1
 
+parameters:
+      workflow-id:
+        type: string
+        default: "{CIRCLE_WORKFLOW_ID:0:7}"
+
 commands:
   slack-notification_on_fail:
     steps:
