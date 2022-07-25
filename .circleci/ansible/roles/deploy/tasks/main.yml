@@ -28,7 +28,7 @@
 - name: "Unzip backend files"
   become: true
   unarchive:
-    src: files/artifacts.tar.gz
+    src: artifacts.tar.gz
     dest: .
 
 - name: "start backend with pm2"
