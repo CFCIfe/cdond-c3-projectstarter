@@ -3,4 +3,4 @@ https://github.com/CFCIfe/cdond-c3-projectstarter
 
 
 Public URL for your S3 Bucket [URL02]
-http://udapeople-aa2b5ab.s3-website-us-east-1.amazonaws.com
+http://udapeople-95e0672.s3-website-us-east-1.amazonaws.com
