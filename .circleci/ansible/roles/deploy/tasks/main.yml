@@ -34,5 +34,5 @@
 - name: "start backend with pm2"
   become: true
   shell: |
-    pm2 delete all
-    pm2 start npm -- start
+    sudo pm2 delete all
+    sudo pm2 start npm -- start
