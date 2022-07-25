@@ -4,9 +4,9 @@ orbs:
   slack: circleci/slack@4.10.1
 
 parameters:
-      workflow-id:
-        type: string
-        default: "{CIRCLE_WORKFLOW_ID:0:7}"
+  workflow-id:
+    type: string
+    default: "{CIRCLE_WORKFLOW_ID:0:7}"
 
 commands:
   slack-notification_on_fail:
@@ -186,7 +186,7 @@ jobs:
           paths:
             - project/.circleci/ansible/inventory.txt
       - destroy-environment:
-          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+          workflow-id: ${CIRCLE_WORKFLOW_ID:0:7}
   configure-infrastructure:
     docker:
       - image: python:3.7-alpine3.16
