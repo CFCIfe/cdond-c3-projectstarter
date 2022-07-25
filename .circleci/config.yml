@@ -178,9 +178,9 @@ jobs:
           name: Add back-end DNS to ansible inventory
           command: |
             aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-              --region ${AWS_DEFAULT_REGION} \
               --query "Reservations[*].Instances[*].PublicIpAddress" \
+              --filters Name=tag:aws:cloudformation:stack-name,Values=udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
+              --region ${AWS_DEFAULT_REGION} \
               --output text >> ~/project/.circleci/ansible/inventory.txt
       - persist_to_workspace:
           root: ~/
@@ -192,41 +192,19 @@ jobs:
     steps:
       - checkout
       - add_ssh_keys:
-         fingerprints: ["fb:46:c1:16:0c:ff:78:dd:73:0c:ee:9e:95:07:1e:51"]
+         fingerprints:
+          - "fb:46:c1:16:0c:ff:78:dd:73:0c:ee:9e:95:07:1e:51"
       - attach_workspace:
           at: ~/
       - run:
           name: Install dependencies
           command: |
-            apk update
-            apk add --no-cache gzip
-            apk add --no-cache tar
-            apk add --no-cache curl
-            apk add --no-cache --upgrade bash
-            apk add --no-cache --update ansible
-            apk add --no-cache openssh
-            apk add --no-cache aws-cli
+            apk add --update --no-cache tar gzip curl ansible aws-cli
       - run:
           name: Configure server
           command: |
-            # add environment variables to server
-            echo ENVIRONMENT=production > backend/.env
-            echo TYPEORM_CONNECTION=$TYPEORM_CONNECTION >> backend/.env
-            echo TYPEORM_DATABASE=$TYPEORM_DATABASE >> backend/.env
-            echo TYPEORM_ENTITIES=$TYPEORM_ENTITIES >> backend/.env
-            echo TYPEORM_HOST=$TYPEORM_HOST >> backend/.env
-            echo TYPEORM_MIGRATIONS=$TYPEORM_MIGRATIONS >> backend/.env
-            echo TYPEORM_MIGRATIONS_DIR=$TYPEORM_MIGRATIONS_DIR >> backend/.env
-            echo TYPEORM_PASSWORD=$TYPEORM_PASSWORD >> backend/.env
-            echo TYPEORM_PORT=$TYPEORM_PORT >> backend/.env
-            echo TYPEORM_USERNAME=$TYPEORM_USERNAME >> backend/.env
-            cat backend/.env
             cd .circleci/ansible/
             ansible-playbook -i inventory.txt configure-server.yml
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - project/backend
       - destroy-environment:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
   run-migrations:
@@ -243,12 +221,12 @@ jobs:
             sudo ./aws/install
       - restore_cache:
           keys: [backend-build]
-      - attach_workspace:
-          at: ~/
       - run:
           name: Run migrations
           command: |
             cd backend
+            npm install
+            npm run build
             npm run migrations >> migrations.txt
       - run:
           name: Send migration results to kvdb
@@ -274,9 +252,9 @@ jobs:
           name: Get backend url
           command: |
             export BACKEND_IP=$(aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-              --region ${AWS_DEFAULT_REGION} \
               --query "Reservations[*].Instances[*].PublicIpAddress" \
+              --filters Name=tag:aws:cloudformation:stack-name,Values=udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
+              --region ${AWS_DEFAULT_REGION} \
               --output text)
             export API_URL="http://${BACKEND_IP}:3030"
             echo API_URL="http://${BACKEND_IP}:3030" >> frontend/.env
@@ -299,15 +277,16 @@ jobs:
     steps:
       - checkout
       - add_ssh_keys:
-         fingerprints: ["fb:46:c1:16:0c:ff:78:dd:73:0c:ee:9e:95:07:1e:51"]
+         fingerprints:
+          - "fb:46:c1:16:0c:ff:78:dd:73:0c:ee:9e:95:07:1e:51"
       - run:
           name: Install dependencies
           command: |
-            apk add --update --no-cache tar gzip ansible openssh nodejs npm aws-cli curl
-      - restore_cache:
-          keys: [backend-build]
+            apk add --update --no-cache tar gzip ansible nodejs npm aws-cli curl
       - attach_workspace:
           at: ~/
+      - restore_cache:
+          keys: [backend-build]
       - run:
           name: Deploy backend objects
           command: |
@@ -317,7 +296,7 @@ jobs:
             cd ..
             tar -C backend -czvf artifact.tar.gz .
             mkdir -p ~/project/.circleci/ansible/roles/deploy/files/
-            mv artifact.tar.gz ~/project/.circleci/ansible/roles/deploy/files
+            mv artifact.tar.gz .circleci/ansible/roles/deploy/files/artifact.tar.gz
             cd .circleci/ansible
             echo "Contents  of the inventory.txt file is -------$(cat inventory.txt)"
             ansible-playbook -i inventory.txt deploy-backend.yml
@@ -333,12 +312,14 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            apk add --update --no-cache curl aws-cli nodejs npm
+            apk add --update --no-cache curl aws-cli nodejs npm tar gzip
+      - attach_workspace:
+          at: ~/
       - run:
           name: Get backend url and backend smoke test
           command: |
             export BACKEND_IP=$(aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
+              --filters Name=tag:aws:cloudformation:stack-name,Values=udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
               --region ${AWS_DEFAULT_REGION} \
               --query "Reservations[*].Instances[*].PublicIpAddress" \
               --output text)
@@ -429,18 +410,18 @@ jobs:
 workflows:
   default:
     jobs:
-      - build-frontend
-      - build-backend
-      - test-frontend:
-          requires: [build-frontend]
-      - test-backend:
-          requires: [build-backend]
-      - scan-backend:
-          requires: [build-backend]
-      - scan-frontend:
-          requires: [build-frontend]
-      - deploy-infrastructure:
-          requires: [test-frontend, test-backend, scan-frontend, scan-backend]
+      # - build-frontend
+      # - build-backend
+      # - test-frontend:
+      #     requires: [build-frontend]
+      # - test-backend:
+      #     requires: [build-backend]
+      # - scan-backend:
+      #     requires: [build-backend]
+      # - scan-frontend:
+      #     requires: [build-frontend]
+      - deploy-infrastructure
+          # requires: [test-frontend, test-backend, scan-frontend, scan-backend]
       - configure-infrastructure:
           requires: [deploy-infrastructure]
       - run-migrations:
@@ -449,9 +430,9 @@ workflows:
           requires: [run-migrations]
       - deploy-backend:
           requires: [run-migrations]
-      - smoke-test:
-          requires: [deploy-backend, deploy-frontend]
-      - cloudfront-update:
-          requires: [smoke-test]
-      - cleanup:
-          requires: [cloudfront-update]
+      # - smoke-test:
+      #     requires: [deploy-backend, deploy-frontend]
+      # - cloudfront-update:
+      #     requires: [smoke-test]
+      # - cleanup:
+      #     requires: [cloudfront-update]

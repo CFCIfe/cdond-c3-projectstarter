@@ -1,38 +1,35 @@
 ---
-
-- name: "upgrade packages."
-  become: true
+- name: 'update and upgrade packages.'
+  become: yes
   apt:
-    upgrade: "yes"
-
-- name: "Remove unneeded dependencies"
-  become: true
+    upgrade: yes
+    update_cache: yes
+    cache_valid_time: 86400
+- name: remove unneeded deps
+  become: yes
   apt:
     autoremove: yes
-
-- name: "install dependencies."
-  become: true
+- name: install deps
+  become: yes
   apt:
-    name: ["nodejs", "npm"]
+    name: ['nodejs', 'npm']
     state: latest
     update_cache: yes
-
-- name: "install pm2"
-  become: true
+- name: install pm2
+  become: yes
   npm:
     name: pm2
     global: yes
+    state: latest
     production: yes
-    state: present
-
-- name: "Unzip backend files"
-  become: true
+- name: extract artifact
+  become: yes
   unarchive:
-    src: artifact.tar.gz
+    src: files/artifact.tar.gz
     dest: .
 
-- name: "start backend with pm2"
-  become: true
+- name: start app
+  become: yes
   shell: |
-    sudo pm2 delete all
-    sudo pm2 start npm -- start
+    pm2 delete all
+    pm2 start npm -- start
