@@ -246,17 +246,16 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            apk add --update --no-cache tar gzip nodejs npm aws-cli
+            apk add --update --no-cache tar gzip nodejs npm aws-cli curl
       - restore_cache:
           keys: [frontend-build]
       - run:
           name: Get backend url
           command: |
             export BACKEND_IP=$(aws ec2 describe-instances \
-              --query "Reservations[*].Instances[*].PublicIpAddress" \
-              --filters Name=tag:aws:cloudformation:stack-name,Values=udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-              --region ${AWS_DEFAULT_REGION} \
-              --output text)
+            --query 'Reservations[*].Instances[*].PublicIpAddress' \
+            --filters Name=tag:aws:cloudformation:stack-name,Values=udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7} \
+            --output text)
             export API_URL="http://${BACKEND_IP}:3030"
             echo API_URL="http://${BACKEND_IP}:3030" >> frontend/.env
             cat frontend/.env
@@ -320,10 +319,9 @@ jobs:
           name: Get backend url and backend smoke test
           command: |
             export BACKEND_IP=$(aws ec2 describe-instances \
-              --filters Name=tag:aws:cloudformation:stack-name,Values=udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-              --region ${AWS_DEFAULT_REGION} \
-              --query "Reservations[*].Instances[*].PublicIpAddress" \
-              --output text)
+            --query 'Reservations[*].Instances[*].PublicIpAddress' \
+            --filters Name=tag:aws:cloudformation:stack-name,Values=udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7} \
+            --output text)
             export API_URL="http://${BACKEND_IP}:3030"
             echo $API_URL
             if curl --connect-timeout 5 "${API_URL}/api/status" | grep "ok"
