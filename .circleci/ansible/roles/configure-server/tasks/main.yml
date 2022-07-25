@@ -5,6 +5,11 @@
   apt:
     upgrade: "yes"
 
+- name: "Remove unneeded dependencies"
+  become: true
+  apt:
+    autoremove: yes
+
 - name: "install dependencies."
   become: true
   apt:

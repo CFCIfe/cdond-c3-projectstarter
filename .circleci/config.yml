@@ -183,7 +183,7 @@ jobs:
             - project/.circleci/ansible/inventory.txt
   configure-infrastructure:
     docker:
-      - image: python:3.9.0-alpine
+      - image: python:3.7-alpine3.16
     steps:
       - checkout
       - add_ssh_keys:
@@ -204,8 +204,24 @@ jobs:
       - run:
           name: Configure server
           command: |
+            # add environment variables to server
+            echo ENVIRONMENT=production > backend/.env
+            echo TYPEORM_CONNECTION=$TYPEORM_CONNECTION >> backend/.env
+            echo TYPEORM_DATABASE=$TYPEORM_DATABASE >> backend/.env
+            echo TYPEORM_ENTITIES=$TYPEORM_ENTITIES >> backend/.env
+            echo TYPEORM_HOST=$TYPEORM_HOST >> backend/.env
+            echo TYPEORM_MIGRATIONS=$TYPEORM_MIGRATIONS >> backend/.env
+            echo TYPEORM_MIGRATIONS_DIR=$TYPEORM_MIGRATIONS_DIR >> backend/.env
+            echo TYPEORM_PASSWORD=$TYPEORM_PASSWORD >> backend/.env
+            echo TYPEORM_PORT=$TYPEORM_PORT >> backend/.env
+            echo TYPEORM_USERNAME=$TYPEORM_USERNAME >> backend/.env
+            cat backend/.env
             cd .circleci/ansible/
             ansible-playbook -i inventory.txt configure-server.yml
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - project/backend
       - destroy-environment:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
   run-migrations:
@@ -214,45 +230,41 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Run migrations
-          command: |
-            cd backend
-            npm install
-            npm run migrations > migrations_dump.txt
-      - run:
           name: Install dependencies
           command: |
-            sudo apt-get update -y && sudo apt-get install -y python3 \
-            python3-pip python3-setuptools groff less -y && sudo pip3 install --upgrade pip \
-            && sudo apt-get clean && sudo apt-get install curl
-      - run:
-          name: Install awscli
-          command: |
-            pip3 --no-cache-dir install --upgrade awscli
-      - run:
-          name: Send migration results to kvdb
-          command: |
-            if grep -q "has been executed successfully." ~/project/backend/migrations_dump.txt
-            then
-              curl https://kvdb.io/4Ki8mGdqFEsVFEJFLoCvgM/migration_${CIRCLE_WORKFLOW_ID:0:7} --insecure -d '1'
-            fi
-      - reverse-migration:
-          workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
-  deploy-frontend:
-    docker:
-      - image: circleci/node:13.8.0
-    steps:
-      - checkout
+            sudo apt install -y tar gzip curl
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -qq awscliv2.zip
+            sudo ./aws/install
       - restore_cache:
-          keys: [frontend-build]
+          keys: [backend-build]
       - attach_workspace:
           at: ~/
       - run:
+          name: Run migrations
+          command: |
+            cd backend
+            npm run migrations >> migrations.txt
+      - run:
+          name: Send migration results to kvdb
+          command: |
+            if grep -q "has been executed successfully." ~/project/backend/migrations.txt
+            then
+              curl https://kvdb.io/4Ki8mGdqFEsVFEJFLoCvgM/migration_${CIRCLE_WORKFLOW_ID:0:7} --insecure -d '1'
+            fi
+      - destroy-environment:
+          workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
+  deploy-frontend:
+    docker:
+      - image: python:3.7-alpine3.16
+    steps:
+      - checkout
+      - run:
           name: Install dependencies
           command: |
-            sudo apt-get update \
-            && sudo apt-get install -y tar \
-            && sudo apt-get install -y awscli
+            apk add --update --no-cache tar gzip nodejs npm aws-cli
+      - restore_cache:
+          keys: [frontend-build]
       - run:
           name: Get backend url
           command: |
@@ -278,31 +290,31 @@ jobs:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
   deploy-backend:
     docker:
-      - image: python:3.7-alpine3.11
+      - image: python:3.7-alpine3.16
     steps:
       - checkout
-      - restore_cache:
-          keys: [backend-build]
       - add_ssh_keys:
          fingerprints: ["fb:46:c1:16:0c:ff:78:dd:73:0c:ee:9e:95:07:1e:51"]
-      - attach_workspace:
-          at: ~/
       - run:
           name: Install dependencies
           command: |
-            apk add --update tar gzip ansible openssh nodejs npm 
-            pip3 install awscli
+            apk add --update --no-cache tar gzip ansible openssh nodejs npm aws-cli
+      - restore_cache:
+          keys: [backend-build]
+      - attach_workspace:
+          at: ~/
       - run:
           name: Deploy backend objects
           command: |
             cd backend
-            npm i
+            npm install
             npm run build
             cd ..
             tar -C backend -czvf artifact.tar.gz .
+            mkdir -p ~/project/.circleci/ansible/roles/deploy/files/
+            mv artifact.tar.gz .circleci/ansible/roles/deploy/files/artifact.tar.gz
             cd .circleci/ansible
-            echo "Contents  of the inventory.txt file is -------"
-            cat inventory.txt
+            echo "Contents  of the inventory.txt file is -------$(cat inventory.txt)"
             ansible-playbook -i inventory.txt deploy-backend.yml
       - destroy-environment:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
@@ -310,40 +322,39 @@ jobs:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
   smoke-test:
     docker:
-      - image: amazon/aws-cli
+      - image: python:3.7-alpine3.16
     steps:
       - checkout
       - run:
           name: Install dependencies
           command: |
-            yum install -y curl
+            apk add --update --no-cache curl aws-cli nodejs npm
       - run:
           name: Get backend url and backend smoke test
           command: |
-            BACKEND_IP=$(aws ec2 describe-instances \
+            export BACKEND_IP=$(aws ec2 describe-instances \
               --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
               --region ${AWS_DEFAULT_REGION} \
               --query "Reservations[*].Instances[*].PublicIpAddress" \
               --output text)
             export API_URL="http://${BACKEND_IP}:3030"
             echo $API_URL
-            if curl -s $API_URL/api/status | grep "ok"
+            if curl --connect-timeout "${API_URL}/api/status" | grep "ok"
             then
-              exit 0
+              return 0
             else
-              exit 1
+              return 1
             fi
       - run:
           name: Frontend smoke test.
           command: |
-            URL="http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1.amazonaws.com/#/employees"            
-            echo ${URL} 
+            export URL="http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1.amazonaws.com/#/employees"            
+            echo $URL 
             if curl -s ${URL} | grep "Welcome"
             then
-              # Change this to 0 after the job fails
-              exit 0
+              return 0
             else
-              exit 1
+              return 1
             fi
       - destroy-environment:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
@@ -351,19 +362,22 @@ jobs:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
   cloudfront-update:
     docker:
-      - image: amazon/aws-cli
+      - image: circleci/node:13.8.0
     steps:
       - checkout
       - run:
           name: Install dependencies
           command: |
-            yum install -y tar gzip
+            sudo apt install tar gzip curl
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -qq awscliv2.zip
+            sudo ./aws/install
       - run:
           name: Update cloudfront distribution
           command: |
-            export OldWorkflowID=$(aws cloudformation list-exports --query "Exports[?Name==\`WorkflowID\`].Value" --no-paginate --output text) 
-            echo $OldWorkflowID >> ~/OldWorkflowID.txt
-            cat ~/OldWorkflowID.txt
+            export OldWorkflowID=$(aws cloudformation list-exports \ 
+            --query "Exports[?Name==\`WorkflowID\`].Value" \
+            --no-paginate --output text)
 
             aws cloudformation deploy \
               --template-file .circleci/files/cloudfront.yml \
@@ -373,9 +387,6 @@ jobs:
             
             echo OldWorkflowID: "${OldWorkflowID}"
             echo Current Workflow: "${CIRCLE_WORKFLOW_ID:0:7}"
-      - persist_to_workspace:
-          root: ~/
-          paths: OldWorkflowID.txt
       - destroy-environment:
           workflow-id: "${CIRCLE_WORKFLOW_ID:0:7}"
       - reverse-migration:
@@ -390,22 +401,19 @@ jobs:
           name: Install dependencies
           command: |
             yum install -y tar gzip
-      - attach_workspace:
-          at: ~/
       - run:
           name: Get old stack workflow id
           command: |
-            OldWorkflowID=$(cat ~/OldWorkflowID.txt)
-            echo OldWorkflowID: ${OldWorkflowID}
-            echo $OldWorkflowID
+            export OldWorkflowID=<< pipeline.parameters.workflow_id >>
 
             export STACKS=($(aws cloudformation list-stacks --query "StackSummaries[*].StackName" \
             --stack-status-filter CREATE_COMPLETE --no-paginate --output text))
 
             echo Stack names: "${STACKS[@]}"
 
-            if [[ "${CIRCLE_WORKFLOW_ID:0:7}" != "${OldWorkflowID}" ]]
+            if [[ "${STACKS[@]}" =~ "${OldWorkflowID}" ]]
             then
+              echo "..................cleaning stacks"..........................
               aws s3 rm "s3://${OldWorkflowID}" --recursive
               aws cloudformation delete-stack --stack-name "udapeople-frontend-${OldWorkflowID}"
               aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}"
